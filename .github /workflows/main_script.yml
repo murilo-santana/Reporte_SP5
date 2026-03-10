@@ -1,0 +1,49 @@
+name: Dados - SCRIPT
+
+on:
+  workflow_dispatch:        # Permite execução manual
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Instalar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Restaurar hxh.json a partir do segredo
+        run: |
+          echo "$GCP_JSON_BASE64" | base64 -d > hxh.json
+        shell: bash
+        env:
+          GCP_JSON_BASE64: ${{ secrets.GCP_JSON_BASE64 }}
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium
+          pip install playwright pillow
+
+      - name: Executar o script
+        # run: xvfb-run python main_script.py
+        env:
+          LOOKER_COOKIES: ${{ secrets.LOOKER_COOKIES }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          WEBHOOK_URL_EXTRA: ${{ secrets.WEBHOOK_URL_EXTRA }}
+        run: xvfb-run python main_script_imagem.py
+        
+      - name: Upload das Evidências (Prints)
+        if: always()  # Garante que roda mesmo se o script der erro antes
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprovantes-looker
+          path: |
+            looker_evidence.png
+            looker_evidence_extra.png
+          retention-days: 1 # Dias de armazenamento da imagem
